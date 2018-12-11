@@ -1,0 +1,341 @@
+---
+title: "data-transformation"
+author: "Benjamin Turner"
+date: "December 11, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Carvana training data is loaded. The RefID variable is a unique identifier for each record, so a row.name column is added, populated with the RefID, and then the RefID is removed from the data altogether.
+```{r}
+library(DataExplorer)
+library(tidymodels)
+library(tidyverse)
+library(caret)
+car_data=read.csv("C:\\Users\\bjtur\\OneDrive\\Documents\\School\\CMU\\Courses\\Fall18\\Data Mining\\Project\\Data\\training.csv",header = T, na.strings=c(""))
+
+```
+
+
+Reviewing the variables available against the provided  Data Dicionary, dependent variable of interest is [IsBadBuy], which is a binary variable where '0' means the vehicle is a good buy (or in other words, NOT a lemon) and '1' means the vehicle is a bad buy (or in other words, a lemon). There are a few variables that are not relevant predictors of vehicle quality:[RefID], [PurchDate], [VehYear], [BYRNO], and [VehBCost].
+
+[RefID] is the "unique (sequential) number assigned to vehicles". This predicts nothing, but could be a good row name.
+[PurchDate] is the "date the vehicle was purchased at auction". This information is irrelevant since we want to predict whether a vehicle at auction is a lemon or not prior to submitting a bid for it. It could only be relevant if we believe that lemons are more likely to be sold during certain seasons of the year relative to other seasons. This is unlikely.
+[VehYear] is "the manufacturer's year of the vehicle". While this is relevant, a year is not a proper numerical value. It is ordered, but the year 2000 does not equate to an equivalent value from which predictions can be made. To address this limitation, the dataset has already included the [VehicleAge] which is simply the year of the auction minus the [VehYear]. This value is better for modeling than [VehYear], so [VehYear] is not needed.
+[BYRNO] is the "unique number assigned to the buyer that purchased the vehicle." This information is irrelevant for the same reason as the [PurchDate] since we want to predict whether an auctioned vehicle is a lemon before submitting a bid to buy.
+[VehBCost] is the "acquisition cost paid for the vehicle at time of purchase." Irrelevant for the same reason as [PurchDate] and [BYRNO]
+
+The following code cleans out the above listed data for the reasons specified.
+```{r}
+
+car_data$RefId=NULL
+car_data$PurchDate=NULL
+car_data$VehYear=NULL
+car_data$BYRNO=NULL
+car_data$VehBCost=NULL
+
+```
+
+
+#Missing values
+Conducting a quick analysis of null values as well as unique variable values reveals that no variable has nulls with the exception of [Trim], which has over 2000. Further, [TRIM] has ... unique values. Since the high number of unique values reduces [Trim]'s predictive power, and since it is unique in the number of nulls it contains, we opt to remove it completely from the dataset.
+```{r}
+
+sapply(car_data,function(x) sum(is.na(x)))
+sapply(car_data,function(x) length(unique(x)))
+car_data$Trim=NULL
+
+```
+
+
+The categorical attribute [Model] contains many different values as can be seen below. If these attributes are left in our model without being cleansed, hundreds of dummy variables would need to be created with likely no predictive benefit. To counteract this, it can be seen that the [Model] names contain some information that might be useful, namely the powertrain and the number of engine cylinders. We can exract this information using regex.
+```{r}
+
+head(car_data$Model, n=30)
+
+```
+
+The attribute [SubModel] has similar problems as [Model]. From it, though, we can extract the number of doors the vehicle has as well as the vehicle type.
+```{r}
+
+head(car_data$SubModel, n=30)
+
+```
+
+
+The regex operations below create and popoulate the following categorical variables: [Doors], [Type] (for car type), [Powertrain], and [Cyl] (for engine cylinders) variables. A few assumptions are taken:
+For [Doors], every car has four doors unless car_data$SubModel states otherwise.
+For [Type], every car is a 'PASSENGER' vehicle unless car_data$SubModel states otherwise.
+For [Powertrain], every car is a 'FWD' unless car_data$Model states otherwise.
+For [Cyl], every car has a 'V4' engine unless car_data$Model states otherwise.
+
+At the conclusion of running these regex operations, we delete the [Model] ad [SubModel] variables.
+
+```{r}
+
+car_data$Doors = "4D"
+car_data$Doors[grep("2d",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "2D"
+car_data$Doors[grep("5d",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "5D"
+car_data$Type = "PASSENGER"
+car_data$Type[grep("MINIVAN",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "MINIVAN"
+car_data$Type[grep("SUV",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SUV"
+car_data$Type[grep("WAGON",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "WAGON"
+car_data$Type[grep("CARGO",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "CARGO"
+car_data$Type[grep("SEDAN",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SEDAN"
+car_data$Type[grep("UTILITY",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "UTILITY"
+car_data$Type[grep("COUPE",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "COUPE"
+car_data$Type[grep("HATCHBACK",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "HATCHBACK"
+car_data$Type[grep("CROSSOVER",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "CROSSOVER"
+car_data$Type[grep("SUV-PICKUP",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SUV-PICKUP"
+car_data$Powertrain = "FWD"
+car_data$Powertrain[grep("RWD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "RWD"
+car_data$Powertrain[grep("2WD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "2WD"
+car_data$Powertrain[grep("AWD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "AWD"
+car_data$Powertrain[grep("4WD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "4WD"
+car_data$Cyl = "V4"
+car_data$Cyl[grep("V6",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V6"
+car_data$Cyl[grep("V8",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V8"
+car_data$Cyl[grep("V10",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V10"
+car_data$Cyl[grep("V12",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V12"
+car_data$Model=NULL
+car_data$SubModel=NULL
+car_data$WheelTypeID=NULL
+car_data$PRIMEUNIT=NULL
+car_data$VNZIP1=NULL
+car_data$AUCGUART=NULL
+car_data$Trim=NULL
+
+car_data$IsOnlineSale = as.factor(car_data$IsOnlineSale)
+
+```
+
+
+When running the plot_histogram() function from the DataExplorer package, we expect to see all continuous variables plotted. However, we are missing a class of variables that report various price ranges of a vehicle up for auction given. They are the following:
+[MMRAcquisitionAuctionAveragePrice]
+[MMRAcquisitionAuctionCleanPrice]
+[MMRAcquisitionRetailAveragePrice]
+[MMRAcquisitonRetailCleanPrice]
+[MMRCurrentAuctionCleanPrice]
+[MMRCurrentAuctionAveragePrice]
+[MMRCurrentRetailAveragePrice]
+[MMRCurrentRetailCleanPrice]
+```{r}
+
+plot_histogram(car_data)
+
+```
+
+When we plot a bar chart, we expect to see all of our categorical variables listed. In adition to those, we also receive an error that lists all of our pricing variables as well as [Trim] because each contains more than 50 categories. This means R is interpreting our pricing variables as categorical rather than continuous.
+```{r}
+
+plot_bar(car_data)
+
+```
+
+We transform each of the pricing variables below as integers, and then re-run our histogram model to confirm each are included.
+```{r}
+
+car_data$IsBadBuy = ifelse(0, "GoodBuy", "BadBuy")
+car_data$MMRAcquisitionAuctionAveragePrice = as.integer(car_data$MMRAcquisitionAuctionAveragePrice)
+car_data$MMRAcquisitionAuctionCleanPrice = as.integer(car_data$MMRAcquisitionAuctionCleanPrice)
+car_data$MMRAcquisitionRetailAveragePrice = as.integer(car_data$MMRAcquisitionRetailAveragePrice)
+car_data$MMRAcquisitonRetailCleanPrice = as.integer(car_data$MMRAcquisitonRetailCleanPrice)
+car_data$MMRCurrentAuctionCleanPrice = as.integer(car_data$MMRCurrentAuctionCleanPrice)
+car_data$MMRCurrentAuctionAveragePrice = as.integer(car_data$MMRCurrentAuctionAveragePrice)
+car_data$MMRCurrentRetailAveragePrice = as.integer(car_data$MMRCurrentRetailAveragePrice)
+car_data$MMRCurrentRetailCleanPrice = as.integer(car_data$MMRCurrentRetailCleanPrice)
+plot_histogram(car_data)
+
+```
+
+We split the data 
+```{r}
+
+set.seed(4595)
+data_split <- initial_split(car_data)
+car_train <- training(data_split)
+car_test  <- testing(data_split)
+nrow(car_train)/nrow(car_data)
+
+```
+
+
+We build the following recipe:
+```{r}
+
+car_recipe <- recipe(IsBadBuy~., data=car_train) %>%
+    step_log(
+        MMRAcquisitionAuctionAveragePrice,
+        MMRAcquisitionAuctionCleanPrice,
+        MMRAcquisitionRetailAveragePrice,
+        MMRAcquisitonRetailCleanPrice,
+        MMRCurrentAuctionAveragePrice,
+        MMRCurrentAuctionCleanPrice,
+        MMRCurrentRetailAveragePrice,
+        MMRCurrentRetailCleanPrice,
+        WarrantyCost
+        ) %>%
+    step_dummy(all_nominal()) %>% 
+    step_center(all_numeric()) %>%
+    step_scale(all_numeric())
+
+
+car_train_prep <- prep(car_recipe, training=car_train, retain=TRUE, verbose=TRUE)
+car_train_bake <- bake(car_train_prep,car_train)
+
+dim(car_train_bake)
+
+```
+
+
+```{r}
+
+
+library(caret)
+ctrl <- trainControl(
+    method = "cv",
+    # Save the assessment predictions from the best model
+    savePredictions = "final",
+    classProbs = TRUE,
+    # Log the progress of the tuning process
+    verboseIter = TRUE,
+    sampling = "down",
+    summaryFunction = twoClassSummary
+)
+
+set.seed(3211)
+mars_gcv_mod <- train(
+    car_recipe, 
+    data = car_train,
+    method = "gcvEarth",
+    tuneGrid = data.frame(degree = 1:2),
+    metric = "ROC",
+    trControl = ctrl
+)
+
+library(earth)
+mars_gcv_mod$finalModel
+
+
+
+
+
+library(logicFS)
+
+logic_ctrl <- trainControl(
+    method = "cv",
+    # Also predict the probabilities
+    classProbs = TRUE,
+    # Compute the ROC AUC as well as the sens and  
+    # spec from the default 50% cutoff. The 
+    # function `twoClassSummary` will produce those. 
+    summaryFunction = twoClassSummary,
+    savePredictions = "final",
+    sampling = "down"
+)
+
+logic_grid = expand.grid(
+    nleaves=5,
+    ntrees=100)
+
+set.seed(5515)
+logic_mod = train(
+    car_recipe,
+    data = car_train,
+    #x = car_train[, names(car_train) != "IsBadBuy"], 
+    #y = car_train$IsBadBuy,
+    
+    method = "logicBag",
+    metric = "ROC",
+    tuneGrid = logic_grid,
+    trControl = logic_ctrl
+)
+plot_roc <- function(x, ...) {
+  roc_obj <- roc(
+    response = x[["obs"]], 
+    predictor = x[["stem"]], 
+    levels = rev(levels(x$obs))
+  )
+  plot(roc_obj, ...)
+}
+
+?make.names
+
+names(getModelInfo())
+
+```
+
+
+
+```{r}
+
+glm_mod=glm(
+    IsBadBuy~.,
+    data = car_train,
+    family=binomial
+    )
+names(glm_mod)
+
+```
+
+
+
+set.seed(5515)
+cart_bag <- train(
+    x = okc_train[, names(okc_train) != "Class"], 
+    y = okc_train$Class,
+    method = "treebag",
+    metric = "ROC",
+    trControl = ctrl
+)
+
+
+#Predicting on the test set
+```{r}
+
+test_res <- car_test %>%
+ dplyr::select(IsBadBuy) %>%
+ mutate(
+   prob = predict(glm_mod, car_test, type = "prob")[,"BadBuy"],
+   pred = predict(glm_mod, car_test)
+ )
+
+```
+
+
+#Model Stats
+```{r}
+
+confusionMatrix(glm_mod)
+ggplot(glm_mod) + theme(legend.position = "top")
+
+```
+
+#Create plot ROC function
+```{r}
+library("pROC")
+plot_roc <- function(x, ...){
+ roc_obj <- roc(
+   response = x[["obs"]],
+   predictor = x[["BadBuy"]],
+   levels = rev(levels(x$obs))
+ )
+ plot(roc_obj, ...)
+}
+```
+
+#Plot ROC
+```{r}
+
+plot_roc(glm_mod$pred)
+
+```
+
+
+
+
