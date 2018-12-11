@@ -1,0 +1,179 @@
+---
+title: "Dontgetkicked_RFModel"
+author: "Ghazal Erfani"
+date: "12/9/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#libraries
+```{r}
+library(tidymodels)
+```
+
+
+## R Markdown
+```{r}
+suppressMessages(library(tidyverse))
+setwd("/Users/ghazalerfani/Documents/Mini2/Data Mining/specificity_dont-get-kicked")
+car_data <- read_csv("carvana_training.csv")
+carvana_test <- read_csv("carvana_test.csv")
+```
+
+## EDA
+```{r}
+suppressMessages(library(DataExplorer))
+carvana_explore <- car_data
+```
+
+```{r}
+plot_intro(carvana_explore)
+```
+```{r}
+plot_missing(carvana_explore)
+```
+```{r}
+plot_histogram(carvana_explore, ggtheme = theme_classic())
+```
+
+# Data Transformations
+```{r}
+# rownames(car_data)=car_data[,1]
+car_data=car_data[,-c(1,3,5,29,32)]
+
+car_data$Doors = "4D"
+car_data$Doors[grep("2d",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "2D"
+car_data$Doors[grep("5d",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "5D"
+car_data$Type = "PASSENGER"
+car_data$Type[grep("MINIVAN",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "MINIVAN"
+car_data$Type[grep("SUV",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SUV"
+car_data$Type[grep("WAGON",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "WAGON"
+car_data$Type[grep("CARGO",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "CARGO"
+car_data$Type[grep("SEDAN",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SEDAN"
+car_data$Type[grep("UTILITY",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "UTILITY"
+car_data$Type[grep("COUPE",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "COUPE"
+car_data$Type[grep("HATCHBACK",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "HATCHBACK"
+car_data$Type[grep("CROSSOVER",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "CROSSOVER"
+car_data$Type[grep("SUV-PICKUP",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SUV-PICKUP"
+car_data$Powerdata = "FWD"
+car_data$Powerdata[grep("RWD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "RWD"
+car_data$Powerdata[grep("2WD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "2WD"
+car_data$Powerdata[grep("4WD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "4WD"
+car_data$Cyl = "V4"
+car_data$Cyl[grep("V6",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V6"
+car_data$Cyl[grep("V8",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V8"
+car_data$Cyl[grep("V10",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V10"
+car_data$Cyl[grep("V10",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V12"
+car_data$Model=NULL
+car_data$SubModel=NULL
+car_data$MMRAcquisitionAuctionAveragePrice = as.integer(car_data$MMRAcquisitionAuctionAveragePrice)
+car_data$MMRAcquisitionAuctionCleanPrice = as.integer(car_data$MMRAcquisitionAuctionCleanPrice)
+car_data$MMRAcquisitionRetailAveragePrice = as.integer(car_data$MMRAcquisitionRetailAveragePrice)
+car_data$MMRAcquisitonRetailCleanPrice = as.integer(car_data$MMRAcquisitonRetailCleanPrice)
+car_data$MMRCurrentAuctionCleanPrice = as.integer(car_data$MMRCurrentAuctionCleanPrice)
+car_data$MMRCurrentAuctionAveragePrice = as.integer(car_data$MMRCurrentAuctionAveragePrice)
+car_data$MMRCurrentRetailAveragePrice = as.integer(car_data$MMRCurrentRetailAveragePrice)
+car_data$MMRCurrentRetailCleanPrice = as.integer(car_data$MMRCurrentRetailCleanPrice)
+car_data$Trim=NULL #has more than 50 categories
+car_data$VNZIP1=NULL #has more than 50 categories
+
+car_data$Auction <- as.factor(car_data$Auction)
+car_data$Make <- as.factor(car_data$Make)
+car_data$Color <- as.factor(car_data$Color)
+car_data$Transmission <- as.factor(car_data$Transmission)
+car_data$Nationality <- as.factor(car_data$Nationality)
+car_data$Size <- as.factor(car_data$Size)
+car_data$TopThreeAmericanName <- as.factor(car_data$TopThreeAmericanName)
+car_data$PRIMEUNIT <- as.factor(car_data$PRIMEUNIT)
+car_data$AUCGUART <- as.factor(car_data$AUCGUART)
+car_data$VNST <- as.factor(car_data$VNST)
+car_data$Doors <- as.factor(car_data$Doors)
+car_data$Type <- as.factor(car_data$Type)
+car_data$Powerdata <- as.factor(car_data$Powerdata)
+car_data$Cyl <- as.factor(car_data$Cyl)
+
+car_data$MMRAcquisitionAuctionAveragePrice=NULL
+car_data$MMRAcquisitonRetailCleanPrice=NULL
+car_data$MMRAcquisitionRetailAveragePrice=NULL
+car_data$MMRAcquisitionAuctionCleanPrice=NULL
+car_data$MMRCurrentAuctionAveragePrice=NULL
+car_data$MMRCurrentAuctionCleanPrice=NULL
+car_data$MMRCurrentRetailAveragePrice=NULL
+car_data$MMRCurrentRetailCleanPrice=NULL
+
+car_data$WheelTypeID=NULL #same as wheel type
+car_data$IsBadBuy <- as.factor(car_data$IsBadBuy)
+
+```
+
+
+
+```{r}
+# carvana_test <- na.omit(carvana_test)
+car_data <- na.omit(car_data)
+
+set.seed(4595)
+data_split <- initial_split(car_data)
+car_train <- training(data_split)
+car_test <- testing(data_split)
+cv_splits <- vfold_cv(car_train, v = 10)
+```
+
+```{r}
+rf_recipe <- recipe(IsBadBuy ~ ., data = car_train) %>%
+                   #print.-RefId -PurchDate -Auction -VehYear -VehicleAge -Make -Model -SubModel -Color -Transmission -WheelTypeID -WheelType -VehOdo -Nationality -Size -TopThreeAmericanName -PRIMEUNIT -AUCGUART -BYRNO -VNZIP1 -VNST -VehBCost -IsOnlineSale -WarrantyCost -MMRAcquisitionAuctionAveragePrice, -MMRAcquisitionAuctionCleanPrice, -MMRAcquisitionRetailAveragePrice, -MMRAcquisitionRetailCleanPrice, -MMRCurrentAuctionAveragePrice, -MMRCurrentAuctionCleanPrice, -MMRCurrentRetailAveragePrice, -MMRCurrentRetailCleanPrice -Trim,data = carvana_training) %>%
+  # .-RefId -BYRNO -Model -SubModel -WheelType -PurchDate -VehYear
+  # step_num2factor(IsOnlineSale) %>%
+  # step_string2factor(Color) %>%
+  # step_string2factor(Auction, Make, Color, Transmission, Nationality, Size, TopThreeAmericanName, PRIMEUNIT, AUCGUART, VNST, Doors, Type, Powerdata, Cyl) %>%
+  step_dummy(all_nominal()) %>%
+  step_zv(all_predictors())
+```
+
+```{r}
+library(caret)
+rf_ctrl <- trainControl(
+  method = "cv",
+  savePredictions = "final",
+  verboseIter = TRUE,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary
+  )
+```
+
+```{r}
+rf_grid <- expand.grid(
+    .mtry = 10
+    # .mtry = seq(45, 80, 5),
+    # .splitrule = "variance",
+    # .min.node.size = 2
+    )
+```
+
+```{r}
+library(randomForest)
+rf_model <- train(
+    rf_recipe,
+    data = car_data,
+    method = "rf",
+    trControl = rf_ctrl,
+    tuneGrid = rf_grid,
+    ntree = 5,
+    metric = 'ROC'
+)
+print(rf_model)
+```
+# Confusion Matrix
+```{r}
+confusionMatrix(rf_model)
+```
+
+# Variable Importance Scores
+```{r}
+rf_imp <- varImp(rf_model, scale = FALSE)
+ggplot(rf_imp, top = 5) + xlab("")
+```
+
