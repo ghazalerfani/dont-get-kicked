@@ -1,7 +1,7 @@
 ---
 title: "Don't Get Kicked - Kaggle"
-author: "Alex Caico"
-date: "December 8, 2018"
+author: "Alex Caico, Ghazal Erfani, Colton Mouritsen, Benjamin Turner"
+date: "December 12, 2018"
 output: html_document
 ---
 
@@ -42,7 +42,7 @@ car_data$WheelTypeID=NULL
 
 #Missing values
 Conducting a quick analysis of null values as well as unique variable values reveals that no variable has nulls with the exception of [Trim], which has over 2000. Further, [Trim] has 135 unique values. Since the high number of unique values reduces [Trim]'s predictive power, and since it is unique in the number of nulls it contains, we opt to remove it completely from the dataset.
-```{r data transformation}
+```{r data}
 
 suppressMessages(library(skimr))
 skimmed <- skim_to_wide(car_data)
@@ -61,7 +61,7 @@ For [Cyl], every car has a 'V4' engine unless car_data$Model states otherwise.
 
 At the conclusion of running these regex operations, we delete the [Model] ad [SubModel] variables.
 
-```{r data transformation}
+```{r }
 suppressMessages(library(tidymodels))
 suppressMessages(library(tidyverse))
 suppressMessages(library(DataExplorer))
@@ -324,7 +324,7 @@ logic_ctrl <- trainControl(
 
 CART Model
 ```{r}
-
+library("pROC")
 cart_mod <- train(
   car_recipe, 
   data = car_train,
@@ -340,7 +340,6 @@ confusionMatrix(cart_mod)
 ggplot(cart_mod) + theme(legend.position = "top")
 
 #Create plot ROC function
-suppressMesssages(library("pROC"))
 plot_roc <- function(x, ...){
   roc_obj <- roc(
     response = x[["obs"]],
