@@ -19,3 +19,17 @@ Our goal is to predict lemons (bad car buys), and to provide a detailed analysis
     (d) GCV MARS Model
 7. Model Comparisions with TidyPosterior
 8. Predicting on the Test Set
+
+
+#Libraries Used
+tidymodels
+tidyverse
+skimr
+DataExplorer
+ggplot2
+caret
+pROC
+tidyposterior
+e1071
+caTools
+scales
