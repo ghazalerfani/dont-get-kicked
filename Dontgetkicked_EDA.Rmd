@@ -1,0 +1,175 @@
+---
+title: "Dontgetkicked_EDA"
+author: "Ghazal Erfani"
+date: "12/11/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+suppressMessages(library(tidyverse))
+setwd("/Users/ghazalerfani/Documents/Mini2/Data Mining/specificity_dont-get-kicked")
+car_data <- read_csv("carvana_training.csv")
+```
+
+## EDA
+```{r}
+suppressMessages(library(DataExplorer))
+```
+
+```{r}
+plot_correlation(car_data, type = 'continuous')
+```
+
+# Data Tranformations
+```{r}
+car_data=car_data[,-c(1,3,5)]
+
+car_data$Doors = "4D"
+car_data$Doors[grep("2d",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "2D"
+car_data$Doors[grep("5d",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "5D"
+car_data$Type = "PASSENGER"
+car_data$Type[grep("MINIVAN",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "MINIVAN"
+car_data$Type[grep("SUV",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SUV"
+car_data$Type[grep("WAGON",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "WAGON"
+car_data$Type[grep("CARGO",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "CARGO"
+car_data$Type[grep("SEDAN",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SEDAN"
+car_data$Type[grep("UTILITY",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "UTILITY"
+car_data$Type[grep("COUPE",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "COUPE"
+car_data$Type[grep("HATCHBACK",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "HATCHBACK"
+car_data$Type[grep("CROSSOVER",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "CROSSOVER"
+car_data$Type[grep("SUV-PICKUP",car_data$SubModel,ignore.case=TRUE, fixed=FALSE)] = "SUV-PICKUP"
+car_data$Powerdata = "FWD"
+car_data$Powerdata[grep("RWD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "RWD"
+car_data$Powerdata[grep("2WD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "2WD"
+car_data$Powerdata[grep("4WD",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "4WD"
+car_data$Cyl = "V4"
+car_data$Cyl[grep("V6",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V6"
+car_data$Cyl[grep("V8",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V8"
+car_data$Cyl[grep("V10",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V10"
+car_data$Cyl[grep("V10",car_data$Model,ignore.case=TRUE, fixed=FALSE)] = "V12"
+car_data$Model=NULL
+car_data$SubModel=NULL
+car_data$MMRAcquisitionAuctionAveragePrice = as.integer(car_data$MMRAcquisitionAuctionAveragePrice)
+car_data$MMRAcquisitionAuctionCleanPrice = as.integer(car_data$MMRAcquisitionAuctionCleanPrice)
+car_data$MMRAcquisitionRetailAveragePrice = as.integer(car_data$MMRAcquisitionRetailAveragePrice)
+car_data$MMRAcquisitonRetailCleanPrice = as.integer(car_data$MMRAcquisitonRetailCleanPrice)
+car_data$MMRCurrentAuctionCleanPrice = as.integer(car_data$MMRCurrentAuctionCleanPrice)
+car_data$MMRCurrentAuctionAveragePrice = as.integer(car_data$MMRCurrentAuctionAveragePrice)
+car_data$MMRCurrentRetailAveragePrice = as.integer(car_data$MMRCurrentRetailAveragePrice)
+car_data$MMRCurrentRetailCleanPrice = as.integer(car_data$MMRCurrentRetailCleanPrice)
+car_data$Trim=NULL #has more than 50 categories
+car_data$VNZIP1=NULL #has more than 50 categories
+
+car_data$Auction <- as.factor(car_data$Auction)
+car_data$Make <- as.factor(car_data$Make)
+car_data$Color <- as.factor(car_data$Color)
+car_data$Transmission <- as.factor(car_data$Transmission)
+car_data$Nationality <- as.factor(car_data$Nationality)
+car_data$Size <- as.factor(car_data$Size)
+car_data$TopThreeAmericanName <- as.factor(car_data$TopThreeAmericanName)
+car_data$PRIMEUNIT <- as.factor(car_data$PRIMEUNIT)
+car_data$AUCGUART <- as.factor(car_data$AUCGUART)
+car_data$VNST <- as.factor(car_data$VNST)
+car_data$Doors <- as.factor(car_data$Doors)
+car_data$Type <- as.factor(car_data$Type)
+car_data$Powerdata <- as.factor(car_data$Powerdata)
+car_data$Cyl <- as.factor(car_data$Cyl)
+
+car_data$WheelTypeID=NULL #same as wheel type
+# car_data$IsBadBuy <- as.factor(car_data$IsBadBuy)
+```
+```{r}
+print("MMRAcquisitionAuctionAveragePrice Summary:")
+summary(car_data$MMRAcquisitionAuctionAveragePrice)
+print("MMRAcquisitionAuctionCleanPrice Summary:")
+summary(car_data$MMRAcquisitionAuctionCleanPrice)
+print("MMRAcquisitionRetailAveragePrice Summary:")
+summary(car_data$MMRAcquisitionRetailAveragePrice)
+print("MMRAcquisitonRetailCleanPrice Summary:")
+summary(car_data$MMRAcquisitonRetailCleanPrice)
+print("MMRCurrentAuctionAveragePrice Summary:")
+summary(car_data$MMRCurrentAuctionAveragePrice)
+print("MMRCurrentAuctionCleanPrice Summary:")
+summary(car_data$MMRCurrentAuctionCleanPrice)
+print("MMRCurrentRetailAveragePrice Summary:")
+summary(car_data$MMRCurrentRetailAveragePrice)
+print("MMRCurrentRetailCleanPrice Summary:")
+summary(car_data$MMRCurrentRetailCleanPrice)
+```
+
+```{r}
+plot_intro(car_data)
+```
+```{r}
+plot_missing(car_data)
+```
+```{r}
+#Remove 'NULL' values in Wheel Type
+car_data <- car_data %>%
+ mutate(WheelType = ifelse(WheelType == "NULL", NA, WheelType))
+row.has.na <- apply(car_data, 1, function(x){any(is.na(x))})
+car_data <- car_data[!row.has.na,]
+#Remove 'NULL' values in Nationality
+car_data <- car_data %>%
+ mutate(Nationality = ifelse(Nationality == "NULL", NA, Nationality))
+row.has.na <- apply(car_data, 1, function(x){any(is.na(x))})
+car_data <- car_data[!row.has.na,]
+```
+
+
+```{r}
+plot_histogram(car_data, ggtheme = theme_classic())
+```
+
+```{r}
+table(car_data$IsBadBuy)
+percent_lemons <- round(length(car_data$IsBadBuy[car_data$IsBadBuy > 0]) / length(car_data$IsBadBuy) * 100,2)
+cat("Percentage of Cars that are Lemons: ", percent_lemons, "%")
+```
+
+```{r}
+counts_age <- table(car_data$IsBadBuy, car_data$VehicleAge)
+barplot(counts_age, main="Lemon Distribution by Vehicle Age",
+  xlab="Vehicle Age", col=c("#ff9999","#00ffcc"), border=NA,
+ 	legend = rownames(counts_age))
+```
+```{r}
+counts_age <- table(car_data$IsBadBuy, car_data$WheelType)
+p <- barplot(counts_age, main="Lemon Distribution by Wheel Type",
+  xlab="Wheel Type", col=c("#33ccff","#00ffcc"), border=NA, horiz = TRUE,
+ 	legend = rownames(counts_age))
+```
+```{r}
+counts <- table(car_data$IsBadBuy, car_data$Auction)
+p <- barplot(counts, main="Lemon Distribution by Auction",
+  xlab="Transmission", col=c("#33ccff","#ff9999"), border=NA, 
+ 	legend = rownames(counts), beside=TRUE)
+
+```
+
+```{r}
+boxplot(MMRAcquisitionAuctionAveragePrice~IsOnlineSale,data=car_data, main="Vehicle Acquisition Cost by Online Sale", 
+    xlab="Is Online Sale", ylab="Vehicle Acquisition Cost")
+```
+
+
+
+```{r}
+library(ggplot2)
+p <- ggplot(car_data, aes(factor(TopThreeAmericanName), VehBCost))
+p + geom_violin(aes(fill = factor(TopThreeAmericanName)), trim = FALSE) 
+```
+
+```{r}
+ggplot(car_data, aes(x=MMRAcquisitionAuctionAveragePrice, color = Doors)) + geom_density()
+```
+
+```{r}
+pie(table(car_data$VNST), main = "Total Cars Sold by State")
+```
+
