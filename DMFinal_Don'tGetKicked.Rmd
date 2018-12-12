@@ -1,5 +1,5 @@
 ---
-title: "Don't Get Kicked - Kaggle"
+title: "Data Mining Final Project F18 - Don't Get Kicked (Kaggle)"
 author: "Alex Caico, Ghazal Erfani, Colton Mouritsen, Benjamin Turner"
 date: "December 12, 2018"
 output: html_document
@@ -43,25 +43,22 @@ car_data$WheelTypeID=NULL
 #Missing values
 Conducting a quick analysis of null values as well as unique variable values reveals that no variable has nulls with the exception of [Trim], which has over 2000. Further, [Trim] has 135 unique values. Since the high number of unique values reduces [Trim]'s predictive power, and since it is unique in the number of nulls it contains, we opt to remove it completely from the dataset.
 ```{r data}
-
-suppressMessages(library(skimr))
-skimmed <- skim_to_wide(car_data)
-skimmed[, c(1:4, 6,7,9)]
-
+sapply(car_data,function(x) sum(is.na(x)))
+sapply(car_data,function(x) length(unique(x)))
 car_data$Trim=NULL
-
 ```
+
 
 We grouped values that have similar meaning within certain variables, so there are less unique variable values and the values are more meaningful. 
 The regex operations below create and popoulate the following categorical variables: [Doors], [Type] (for car type), [Powertrain], and [Cyl] (for engine cylinders) variables. A few assumptions are taken:
-For [Doors], every car has four doors unless car_data$SubModel states otherwise.
-For [Type], every car is a 'PASSENGER' vehicle unless car_data$SubModel states otherwise.
-For [Powertrain], every car is a 'FWD' unless car_data$Model states otherwise.
-For [Cyl], every car has a 'V4' engine unless car_data$Model states otherwise.
+For [Doors], every car has four doors unless car_data SubModel states otherwise.
+For [Type], every car is a 'PASSENGER' vehicle unless car_data SubModel states otherwise.
+For [Powertrain], every car is a 'FWD' unless car_data Model states otherwise.
+For [Cyl], every car has a 'V4' engine unless car_data Model states otherwise.
 
-At the conclusion of running these regex operations, we delete the [Model] ad [SubModel] variables.
+At the conclusion of running these regex operations, we delete the [Model] and [SubModel] variables.
 
-```{r }
+```{r transformations}
 suppressMessages(library(tidymodels))
 suppressMessages(library(tidyverse))
 suppressMessages(library(DataExplorer))
@@ -140,21 +137,14 @@ car_data$Doors <- as.factor(car_data$Doors)
 car_data$Type <- as.factor(car_data$Type)
 car_data$Cyl <- as.factor(car_data$Cyl)
 
-print("MMRAcquisitionAuctionAveragePrice Summary:")
+
 summary(car_data$MMRAcquisitionAuctionAveragePrice)
-print("MMRAcquisitionAuctionCleanPrice Summary:")
 summary(car_data$MMRAcquisitionAuctionCleanPrice)
-print("MMRAcquisitionRetailAveragePrice Summary:")
 summary(car_data$MMRAcquisitionRetailAveragePrice)
-print("MMRAcquisitonRetailCleanPrice Summary:")
 summary(car_data$MMRAcquisitonRetailCleanPrice)
-print("MMRCurrentAuctionAveragePrice Summary:")
 summary(car_data$MMRCurrentAuctionAveragePrice)
-print("MMRCurrentAuctionCleanPrice Summary:")
 summary(car_data$MMRCurrentAuctionCleanPrice)
-print("MMRCurrentRetailAveragePrice Summary:")
 summary(car_data$MMRCurrentRetailAveragePrice)
-print("MMRCurrentRetailCleanPrice Summary:")
 summary(car_data$MMRCurrentRetailCleanPrice)
 ```
 
@@ -232,7 +222,7 @@ plot_correlation(car_data, type = 'continuous')
 
 ##Splitting data between training and testing
 Test data is not used during training, so the final model can be assessed with test data that the model hasn't seen before
-```{r}
+```{r data split}
 set.seed(4595)
 data_split <- initial_split(car_data)
 car_train <- training(data_split)
@@ -242,26 +232,24 @@ nrow(car_train)/nrow(car_data)
 
 
 ##Recipe Creation
-```{r}
+```{r recipe}
 
 car_recipe <- recipe(IsBadBuy~., data=car_train) %>%
    step_center(all_numeric()) %>%
    step_scale(all_numeric())  
 
 
-car_train_prep <- prep(car_recipe, training=car_train, retain=TRUE, verbose=TRUE)
-car_train_baked <- bake(car_train_prep,car_train)
 ```
 
 
 ##Modeling Method
 The exploratory data analysis shows that we are attempting to predict a bivaraite classification problem and that there is a skewed distribution of the values of the target variable. There is 12.3% "BadBuys" in the overall data. It is more important to correctly to predict "BadBuys". To account for this, we used down sampling and true class probs when training the model. 
+
 Several models are being assessed for this bivariate classification problem
 -CART
 -Bagged CART
 -Naive Bayes
 -GCV MARS Earth
--Bagged Logic Regression
 
 
 Tuning Parameters for models to be assessed
@@ -271,18 +259,14 @@ modelLookup('rpart2')
 modelLookup('nb')
 modelLookup('treebag')
 modelLookup('gcvEarth')
-modelLookup('logicBag')
-
 ```
 
 
 ## Train Control and Tune Grids for All Models
-```{r}
-
+```{r train control and grids}
 
 ctrl <- trainControl(
   method = "cv",
- 
   classProbs = TRUE, 
   summaryFunction = twoClassSummary,
   savePredictions = "final",
@@ -293,28 +277,11 @@ cart_grid <- expand.grid(
   data.frame(maxdepth = 1:10)
 )
 
-
 nb_smoothing_grid <- expand.grid(
   usekernel = TRUE, 
   fL = 0, 
   adjust = seq(2.0, 5.0, by = 0.5)
 )
-
-
-logic_grid = expand.grid(
-   nleaves=20,
-   ntrees=60)
-
-logic_ctrl <- trainControl(
-   method = "cv",
-   # Also predict the probabilities
-   classProbs = TRUE,
-   verboseIter = TRUE,
-   summaryFunction = twoClassSummary,
-   savePredictions = "final",
-   sampling = "down"
-)
-
 
 ```
 
@@ -322,9 +289,10 @@ logic_ctrl <- trainControl(
 
 ## Model Training & Performance Assessment
 
-CART Model
-```{r}
-library("pROC")
+
+#CART Model
+```{r CART Model}
+suppressMessages(library(pROC))
 cart_mod <- train(
   car_recipe, 
   data = car_train,
@@ -360,8 +328,10 @@ ggplot(cart_imp, top = 10) + xlab("")
 
 ```
 
-Bagged CART (treebag)
-```{r}
+
+
+#Bagged CART (treebag)
+```{r Bagged CART}
 
 cart_bagged_mod <- train(
   car_recipe, 
@@ -369,7 +339,6 @@ cart_bagged_mod <- train(
   method = "treebag", 
   metric = "ROC", 
   trControl = ctrl
-
 )
 
 #Model Stats
@@ -384,6 +353,8 @@ cart_bagged_imp <- varImp(cart_bagged_mod, scale = FALSE)
 ggplot(cart_bagged_imp, top = 15) + xlab("")
 
 ```
+
+
 ```{r parallel, include = FALSE}
 library(doParallel)
 parallel::detectCores(logical = TRUE)
@@ -392,8 +363,8 @@ registerDoParallel(cl)
 ```
 
 
-Naive Bayes
-```{r}
+#Naive Bayes
+```{r Naive Bayes}
 nb_mod <- train(
   car_recipe, 
   data = car_train, 
@@ -419,32 +390,9 @@ ggplot(nb_imp, top = 15) + xlab("")
 ```
 
 
-Logistics Regression
-```{r}
-# library(LogicReg)
-# library(mcbiopi)
-# library(logicFS)
-# 
-# set.seed(5515)
-# logic_mod = train(
-#  #  car_recipe,
-#    data = car_train_baked,
-#    x = car_train_baked[, names(car_train_baked) == "Auction_MANHEIM"],
-#    y = car_train_baked$IsBadBuy_GoodBuy,
-#    method = "logicBag",
-#    metric = "ROC",
-#    tuneGrid = logic_grid,
-#    trControl = logic_ctrl
-# )
-
-##Errors with log regression that we couldn't solve
-
-```
-
-
-GCV MARS
-```{r}
-library(earth)
+#GCV Earth
+```{r GCV Earth}
+suppressMessages(library(earth))
 set.seed(3544)
 mars_gcv_mod <- train(
   car_recipe, 
@@ -465,8 +413,9 @@ plot_roc(mars_gcv_mod$pred)
 
 
 
+
 ##Model Comparisons with TidyPosterior
-```{r}
+```{r model comparison}
 suppressMessages(library(tidyposterior))
 rs <- resamples(
   list(CART = cart_mod, Bagged = cart_bagged_mod, Bayes = nb_mod, GCV = mars_gcv_mod )
@@ -485,7 +434,6 @@ roc_dist <- tidy(roc_mod)
 summary(roc_dist)
 summary(differences, size = 0.025)
 
-
 differences %>%
   mutate(contrast = paste(model_2, "vs", model_1)) %>%
   ggplot(aes(x = difference, col = contrast)) +
@@ -497,25 +445,23 @@ plot_roc(cart_mod$pred)
 plot_roc(cart_bagged_mod$pred, col = "red", add = TRUE)
 plot_roc(nb_mod$pred, col = "blue", add = TRUE)
 plot_roc(mars_gcv_mod$pred, col = "green", add = TRUE)
-
-
 ```
 
 
 Model Comparison Result:
 Tidyposterior compares the differences in model statistics through resampling. The results of the resampling is used to get parameter estimates for each model's effect on the resampled ROC values and make statistical significant comparisons between models. 
 
-The results show that GCV earth perform better than the other models by a statiscally significant amount with a mean ROC score of 0.74595. There is a low pract_equiv score when comparing GCV to other models
-
+The results show that GCV Earth perform better than the other models by a statiscally significant amount with a mean ROC score of 0.74595. There is a low pract_equiv score when comparing GCV to other models, which means the performance of the other models are not statistically similar to GCV Earth. Due to these reasons, we choose GCV Earth as our final model to use with the test set. 
 
 
 
 
 ##Predicting on the Test Set
-```{r}
+```{r predicting on the test set}
 suppressMessages(library(e1071))
 suppressMessages(library(caTools))
 suppressMessages(library(scales))
+
 
 test_res <- car_test %>%
   dplyr::select(IsBadBuy) %>%
@@ -523,16 +469,13 @@ test_res <- car_test %>%
     prob = predict(mars_gcv_mod, car_test, type = "prob")[,"BadBuy"],
     pred = predict(mars_gcv_mod, car_test)
   )
-
 roc_curve <- roc(test_res$IsBadBuy, test_res$prob, levels = c("GoodBuy", "BadBuy"))
-
 getTrainPerf(mars_gcv_mod)
-
 
 plot(
     roc_curve,
     legacy.axes = TRUE,
-    print.thres = c(.2, .5, .8), 
+    print.thres = c(.3, .5, .7), 
     print.thres.pattern = "cut = %.2f (Sp = %.3f, Sn = %.3f)",
     print.thres.cex = .8
 )
@@ -540,7 +483,6 @@ plot(
 car_test_predict <- predict(mars_gcv_mod, car_test)
 cfm <- confusionMatrix(car_test_predict, car_test$IsBadBuy)
 cfm
-
 
 ggplotConfusionMatrix <- function(m){
   mytitle <- paste("Accuracy", percent_format()(m$overall[1]),
@@ -557,17 +499,17 @@ ggplotConfusionMatrix <- function(m){
 }
 
 ggplotConfusionMatrix(cfm)
-
-
 ```
+
+
 Evaluation of Test Set:
-We have selected GCVearth as the best performing model from the training and cross validation. 
-We have predicted the test data on this model. The model correctly predicted 1,492 Lemons ("Badbuy") out of 2,235 lemons (67%)
-The model also incorrectly predicted good buys as Lemons 5,229 out of 16,007 good buys (33%).
+We have selected GCVearth as the best performing model from the training and cross validation results. 
+We have predicted the test data on this model. The model correctly predicted 1,492 Lemons ("Badbuy") out of 2,235 lemons (67%).The model also incorrectly predicted good buys as Lemons 5,229 out of 16,007 good buys (33%). The overall accuracy of predictions is 67.3%. We feel that these results would provide value to a car dealers when buying cars at an auction. Although the accuracy is not very high, the predictions could be used as an initial indicator whether a car may be a lemon or not. 
+
 
 Implementation
-This model could be integrated with a software application that would allow car dealers to send a request with specifc car details at an auction, so then the model could return a response whether it predicts the car to be a lemon or not. The user should use this response as an indicator to ask the auctioneer for more information or conduct additional inspection of the car before buying, to ensure it is not a lemon. 
-After car dealers have bought a car and determined whether or not it was a lemon, they should enter this new data in the application and the models should be re-trained with this additional data, so the models could continuously learn overtime and detect any new trends in the data. 
+This model could be integrated with a software application that would allow car dealers to send a request with specifc car details from an auction, so then the model could return a response whether it predicts the car to be a lemon or not. The user should use this response as an indicator to ask the auctioneer for more information or conduct additional inspection of the car before buying to reduce the risk of the car being a lemon. 
+After car dealers have bought a car and determined whether or not it was a lemon, they should enter this new data in the application and the models should be re-trained with this additional data, so the models could continuously learn overtime and detect any new trends in the data to increase accuracy of it's predictions.
 
 
 
